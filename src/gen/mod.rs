@@ -1,0 +1,2 @@
+#![allow(clippy)]
+mod parser;

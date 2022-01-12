@@ -1,0 +1,17 @@
+{
+    "editor.rulers": [
+        100
+    ],
+    "files.watcherExclude": {
+        "**/target/**": true,
+        "**/parser.rs": true,
+    },
+    "rust-analyzer.files.excludeDirs": [
+        "src/gen"
+    ],
+    "cSpell.ignoreWords": [
+        "Qualident",
+        "Subrange"
+    ],
+    "rust-analyzer.checkOnSave.enable": false
+}

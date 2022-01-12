@@ -1,0 +1,513 @@
+use crate::ast;
+
+#[LALR]
+grammar;
+
+// PIM syntax 1
+pub Ident: ast::Ident<'input> = { r"[a-zA-Z][a-zA-Z0-9]*" => ast::Ident(<>) }
+
+// PIM syntax 2
+// Refactored.
+pub Number: ast::Number<'input> = { 
+    <u:r"[0-7]+B">                       => ast::Number::Oct(u),
+    <u:r"[0-9]+">                        => ast::Number::Dec(u),
+    <u:r"[0-9][0-9A-F]*H">               => ast::Number::Hex(u),
+    <u:r"[0-9]+\.[0-9]*(E[+-]?[0-9]+)?"> => ast::Number::Real(u),
+}
+
+
+// PIM syntax 10
+pub String: ast::QStr<'input> = {
+    r#"'[^']*'"# => ast::QStr(<>),
+    r#""[^"]*""# => ast::QStr(<>),
+}
+
+// PIM syntax 11
+pub Qualident: ast::Qualident<'input> = { 
+    <mut v:(<Ident> ".")*> <u:Ident> => { v.push(u); ast::Qualident(v) },
+}
+
+// PIM syntax 12
+pub ConstDeclaration: ast::ConstantDeclaration<'input> =  {
+    <u:Ident> "=" <v:ConstExpression> => ast::ConstantDeclaration(u, v),
+}
+
+// PIM syntax 13
+pub ConstExpression: ast::ConstExpression<'input> = {
+    <u:SimpleConstExpr> <v:(Relation SimpleConstExpr)?> => ast::ConstExpression(u, v),
+}
+
+// PIM syntax 14
+pub Relation: ast::Relation = {
+    "="  => ast::Relation::EQ,
+    "#"  => ast::Relation::HASH,
+    "<>" => ast::Relation::NE,
+    "<"  => ast::Relation::LT,
+    "<=" => ast::Relation::LTE,
+    ">"  => ast::Relation::GT,
+    ">=" => ast::Relation::GTE,
+    "IN" => ast::Relation::IN,
+}
+
+// PIM syntax 15
+pub SimpleConstExpr: ast::SimpleConstExpr<'input> = {
+    "+" <u:ConstTerm> <v:(AddOperator ConstTerm)*> => ast::SimpleConstExpr(ast::AddSub::ADD, u, v),
+    "-" <u:ConstTerm> <v:(AddOperator ConstTerm)*> => ast::SimpleConstExpr(ast::AddSub::SUB, u, v),
+        <u:ConstTerm> <v:(AddOperator ConstTerm)*> => ast::SimpleConstExpr(ast::AddSub::ADD, u, v),
+}
+
+// PIM syntax 16
+pub AddOperator: ast::AddOp = {
+    "+"  => ast::AddOp::ADD,
+    "-"  => ast::AddOp::SUB,
+    "OR" => ast::AddOp::OR,
+}
+
+// PIM syntax 17
+pub ConstTerm: ast::ConstTerm<'input> = {
+    <u:ConstFactor> <v:(MulOperator ConstFactor)*> => ast::ConstTerm(u, v),
+}
+
+// PIM syntax 18
+pub MulOperator: ast::MulOperator = {
+    "*"   => ast::MulOperator::MUL,
+    "/"   => ast::MulOperator::DIV,
+    "DIV" => ast::MulOperator::DIV,
+    "MOD" => ast::MulOperator::MOD,
+    "AND" => ast::MulOperator::AND,
+    "&"   => ast::MulOperator::AND,
+}
+
+// PIM syntax 19
+pub ConstFactor: ast::ConstFactor<'input> = {
+    <u:Qualident>               => ast::ConstFactor::Qualident(u),
+    <u:Number>                  => ast::ConstFactor::Num(u),
+    <u:String>                  => ast::ConstFactor::QStr(u),
+    <mut u:Set>                 => ast::ConstFactor::Set(u),
+    "(" <u:ConstExpression> ")" => ast::ConstFactor::ConstantExpression(Box::new(u)),
+    "NOT" <u:ConstFactor>       => ast::ConstFactor::Not(Box::new(u)),
+    "~"   <u:ConstFactor>       => ast::ConstFactor::Not(Box::new(u)),
+}
+
+// PIM syntax 21
+pub Set: ast::Set<'input> = {
+    <u:(Qualident)?> "{" <mut v:(<Element> ",")*> <w:Element> "}" => {
+        v.push(w);
+        ast::Set(u, v)
+    },
+    <u:(Qualident)?> "{"                                      "}" => {
+        ast::Set(u, Vec::default())
+    },
+}
+
+// PIM syntax 22
+pub Element: ast::Element<'input> = {
+    <u:ConstExpression>                          => ast::Element::Item(u),
+    <u:ConstExpression> ".." <v:ConstExpression> => ast::Element::Range(u, v),
+}
+
+// PIM syntax 23
+pub TypeDeclaration: ast::TypeDeclaration<'input> = {
+    <u:Ident> "=" <v:Type> => ast::TypeDeclaration(u, v),
+}
+
+// PIM syntax 24
+pub Type: ast::Type<'input> = {
+    <u:SimpleType>    => ast::Type::SimpleType(u),
+    <u:ArrayType>     => ast::Type::ArrayType(u),
+    <u:RecordType>    => ast::Type::RecordType(u),
+    <u:SetType>       => ast::Type::SetType(u),
+    <u:PointerType>   => ast::Type::PointerType(u),
+    <u:ProcedureType> => ast::Type::ProcedureType(u),
+}
+
+// PIM syntax 26
+pub SimpleType: ast::SimpleType<'input> = {
+    <u:Qualident>    => ast::SimpleType::Qualident(u),
+    <u:Enumeration>  => ast::SimpleType::Enumeration(u),
+    <u:SubrangeType> => ast::SimpleType::SubrangeType(u),
+}
+
+// PIM syntax 27
+pub Enumeration: ast::Enumeration<'input> = {
+    "(" <u:IdentList> ")" => ast::Enumeration(u),
+}
+
+// PIM syntax 28
+pub IdentList: ast::IdentList<'input> = {
+    <mut v:(<Ident> ",")*> <u:Ident> => { v.push(u); ast::IdentList(v) },
+}
+
+// PIM syntax 29
+pub SubrangeType: ast::SubrangeType<'input> = {
+    "[" <u:ConstExpression> ".." <v:ConstExpression> "]" => ast::SubrangeType(u, v),
+}
+
+// PIM syntax 30
+pub ArrayType: ast::ArrayType<'input> = {
+    "ARRAY" <mut u:(<SimpleType> ",")*> <v:SimpleType> "OF" <w:Type> => {
+        u.push(v);
+        ast::ArrayType(u, Box::new(w))
+    },
+}
+
+// PIM syntax 31
+pub RecordType: ast::RecordType<'input> = {
+    "RECORD" <u:FieldListSequence> "END" => ast::RecordType(u),
+}
+
+// PIM syntax 32
+pub FieldListSequence: ast::FieldListSequence<'input> = {
+    <mut u:(<FieldList> ";")*> <v:FieldList> => { u.push(v); ast::FieldListSequence(u) },
+}
+
+// PIM syntax 33
+pub FieldList: ast::FieldList<'input> = {
+    "" => {
+        ast::FieldList::Empty
+    },
+    <u:IdentList> ":" <v:Type> => {
+        ast::FieldList::Ident(u, v)
+    },
+    <u:("CASE" <Ident> ":")?>
+            <v:Qualident> "OF" <mut w:(<Variant> "|")*> <x:Variant>
+            <y:("ELSE" <FieldListSequence>)?>
+            "END" => {
+        w.push(x);
+        ast::FieldList::Case(u, v, w, y.unwrap_or_else(|| ast::FieldListSequence::default()))
+    },
+}
+
+// PIM syntax 36
+pub Variant: ast::Variant<'input> = {
+    <u:CaseLabelList> <v:FieldListSequence> => ast::Variant(u, v),
+}
+
+// PIM syntax 37
+pub CaseLabelList: ast::CaseLabelList<'input> = {
+    <mut u:(<CaseLabels> ",")*> <v:CaseLabels> => { u.push(v); ast::CaseLabelList(u) },
+}
+
+// PIM syntax 38
+pub CaseLabels: ast::CaseLabels<'input> = {
+    <u:ConstExpression> <v:(".." <ConstExpression>)?> => ast::CaseLabels(u, v),
+}
+
+// PIM syntax 39
+pub SetType: ast::SetType<'input> = {
+    "SET" "OF" <u:SimpleType> => ast::SetType(u),
+}
+
+// PIM syntax 40
+pub PointerType: ast::PointerType<'input> = {
+    "POINTER" "TO" <u:Type> => ast::PointerType(Box::new(u)),
+}
+
+// PIM syntax 41
+pub ProcedureType: ast::ProcedureType<'input> = {
+    "PRODCEDURE" <u:(FormalTypeList)?> => ast::ProcedureType(u),
+}
+
+// PIM syntax 42
+// Refactored.
+pub FormalTypeList: ast::FormalTypeList<'input> = {
+    "(" <mut u:(<VarFormalType> ",")*> <v:(VarFormalType)> ")" ":" <w:(Qualident)?> => {
+        u.push(v);
+        ast::FormalTypeList(u, w)
+    },
+    "("                                                    ")" ":" <w:(Qualident)?> => {
+        ast::FormalTypeList(Vec::default(), w)
+    },
+}
+
+pub VarFormalType: (Option<ast::Var>, ast::FormalType<'input>) = {
+    "VAR" <u:FormalType> => (Some(ast::Var), u),
+          <u:FormalType> => (None, u),
+}
+
+// PIM syntax 44
+pub VariableDeclaration: ast::VariableDeclaration<'input> = {
+    <u:IdentList> ":" <v:Type> => ast::VariableDeclaration(u, v),
+}
+
+// PIM syntax 45
+// Refactored.
+pub Designator: ast::Designator<'input> = {
+    <mut b: Designator> "[" <u:ExpList> "]" <v:("." <Ident>)*> => {
+        b.1.push(ast::DesignatorElement::ExpList(u));
+        for v in v {
+            b.1.push(ast::DesignatorElement::Ident(v));
+        }
+        b
+    },
+    <mut b: Designator> "^"                 <v:("." <Ident>)*> => {
+        b.1.push(ast::DesignatorElement::Arrow);
+        for v in v {
+            b.1.push(ast::DesignatorElement::Ident(v));
+        }
+        b
+    },
+    <u:Qualident>                           => {
+        ast::Designator(u, Vec::default())
+    },
+}
+
+// PIM syntax 46
+pub ExpList: ast::ExpList<'input> = {
+    <u:(<Expression> ",")*> <v:Expression> => ast::ExpList(u),
+}
+
+// PIM syntax 47
+pub Expression: ast::Expression<'input> = {
+    <u:SimpleExpression> <v:(Relation SimpleExpression)?> => ast::Expression(u, v),
+}
+
+// PIM syntax 48
+pub SimpleExpression: ast::SimpleExpression<'input> = {
+    "+" <u:Term> <v:(AddOperator Term)*> => {
+        ast::SimpleExpression(ast::AddSub::ADD, Box::new(u), v)
+    },
+    "-" <u:Term> <v:(AddOperator Term)*> => {
+        ast::SimpleExpression(ast::AddSub::SUB, Box::new(u), v)
+    },
+        <u:Term> <v:(AddOperator Term)*> => {
+        ast::SimpleExpression(ast::AddSub::ADD, Box::new(u), v)
+    },
+}
+
+// PIM syntax 49
+pub Term: ast::Term<'input> = {
+    <u:Factor> <v:(MulOperator Factor)*> => ast::Term(u, v),
+}
+
+// PIM syntax 50
+pub Factor: ast::Factor<'input> = {
+    <u:Number>                             => ast::Factor::Num(u),
+    <u:String>                             => ast::Factor::QStr(u),
+    <u:Set>                                => ast::Factor::Set(u),
+    <u:Designator> <v:(ActualParameters)?> => ast::Factor::Designator(u, v),
+    "(" <u:Expression> ")"                 => ast::Factor::Expression(u),
+    "NOT" <u:Factor>                       => ast::Factor::Not(Box::new(u)),
+}
+
+// PIM syntax 52
+pub ActualParameters: ast::ActualParameters<'input> = {
+    "(" <u:(ExpList)?> ")" => ast::ActualParameters(u),
+}
+
+// PIM syntax 53
+// Refactored.
+pub Statement: ast::Statement<'input> = {
+    <u:(StatementVariant)?> => {
+        match u {
+            Some(u) => u,
+            None    => ast::Statement::Empty,
+        }
+    },
+}
+
+StatementVariant: ast::Statement<'input> = {
+    <u:Assignment>             => ast::Statement::Assignment(u),
+    <u:ProcedureCall>          => ast::Statement::ProcedureCall(u),
+    <u:IfStatement>            => ast::Statement::IfStatement(u),
+    <u:CaseStatement>          => ast::Statement::CaseStatement(u),
+    <u:WhileStatement>         => ast::Statement::WhileStatement(u),
+    <u:RepeatStatement>        => ast::Statement::RepeatStatement(u),
+    <u:LoopStatement>          => ast::Statement::LoopStatement(u),
+    <u:ForStatement>           => ast::Statement::ForStatement(u),
+    <u:WithStatement>          => ast::Statement::WithStatement(u),
+    "EXIT"                     => ast::Statement::EXIT,
+    "RETURN" <u:(Expression)?> => ast::Statement::RETURN(u),
+}
+
+// PIM syntax 57
+pub Assignment: ast::Assignment<'input> = {
+    <u:Designator> ":=" <v:Expression> => ast::Assignment(u, v),
+}
+
+// PIM syntax 58
+pub ProcedureCall: ast::ProcedureCall<'input> = {
+    <u:Designator> <v:(ActualParameters)?> => ast::ProcedureCall(u, v),
+}
+
+// PIM syntax 59
+pub StatementSequence: ast::StatementSequence<'input> = {
+    <mut u:(<Statement> ";")*> <v:Statement> => { u.push(v); ast::StatementSequence(u) }
+}
+
+// PIM syntax 60
+// Refactored.
+pub IfStatement: ast::IfStatement<'input> = {
+    <mut b:IfStatementBuilder> "ELSE" <u:StatementSequence> "END" => {
+        b.1 = Some(u);
+        b
+    },
+    <mut b:IfStatementBuilder>                              "END" => {
+        b
+    },
+}
+
+IfStatementBuilder: ast::IfStatement<'input> = {
+                                  "IF" <u:Expression> "THEN" <v:StatementSequence> => {
+        ast::IfStatement(vec![(u, v)], None)
+    },
+    <mut b:IfStatementBuilder> "ELSIF" <u:Expression> "THEN" <v:StatementSequence> => {
+        b.0.push((u, v));
+        b
+    },
+}
+
+// PIM syntax 62
+pub CaseStatement: ast::CaseStatement<'input> = {
+    "CASE" <u:Expression> "OF" <mut v:(<Case> "|")*> <w:Case>
+            <x:("ELSE" <StatementSequence>)?>
+            "END" => {
+        v.push(w);
+        ast::CaseStatement(u, v, x)
+    },
+}
+
+// PIM syntax 65
+pub Case: ast::Case<'input> = {
+    <u:CaseLabelList> ":" <v:StatementSequence> => ast::Case(u, v),
+}
+
+// PIM syntax 66
+pub WhileStatement: ast::WhileStatement<'input> = {
+    "WHILE" <u:Expression> "DO" <v:StatementSequence> "END" => ast::WhileStatement(u, v),
+}
+
+// PIM syntax 67
+pub RepeatStatement: ast::RepeatStatement<'input> = {
+    "REPEAT" <u:StatementSequence> "UNTIL" <v:Expression> => ast::RepeatStatement(u, v),
+}
+
+// PIM syntax 68
+pub ForStatement: ast::ForStatement<'input> = {
+    "FOR" <u:Ident> ":=" <v:Expression> "TO" <w:Expression>
+        <x:("BY" <ConstExpression>)?>
+        "DO" <y:StatementSequence> "END"
+    => ast::ForStatement(u, v, w, x, y),
+}
+
+// PIM syntax 70
+pub LoopStatement: ast::LoopStatement<'input> = {
+    "LOOP" <u:StatementSequence> "END" => ast::LoopStatement(u),
+}
+
+// PIM syntax 71
+pub WithStatement: ast::WithStatement<'input> = {
+    "WITH" <u:Designator> "DO" <v:StatementSequence> "END" => ast::WithStatement(u, v),
+}
+
+// PIM syntax 72
+pub ProcedureDeclaration: ast::ProcedureDeclaration<'input> = {
+    <u:ProcedureHeading> ";" <v:Block> <w:Ident> => ast::ProcedureDeclaration(u, v, w),
+}
+
+// PIM syntax 73
+pub ProcedureHeading: ast::ProcedureHeading<'input> = {
+    "PROCEDURE" <u:Ident> <v:(FormalParameters)?> => ast::ProcedureHeading(u, v),
+}
+
+// PIM syntax 74
+pub Block: ast::Block<'input> = {
+    <u:(Declaration)*> <v:("BEGIN" <StatementSequence>)?> "END" => ast::Block(u, v),
+}
+
+// PIM syntax 75
+pub Declaration: ast::Declaration<'input> = {
+    "CONST" <u:(<ConstDeclaration> ";")*>    => ast::Declaration::Const(u),
+    "TYPE"  <u:(<TypeDeclaration> ";")*>     => ast::Declaration::Type(u),
+    "VAR"   <u:(<VariableDeclaration> ";")*> => ast::Declaration::Var(u),
+            <u:ProcedureDeclaration> ";"     => ast::Declaration::Procedure(u),
+            <u:ModuleDeclaration> ";"        => ast::Declaration::Module(u),
+}
+
+// PIM syntax 79
+pub FormalParameters: ast::FormalParameters<'input> = {
+    "(" <mut u:(<FPSection> ";")*> <v:FPSection> ")" <w:(":" <Qualident>)?> => {
+        u.push(v);
+        ast::FormalParameters(u, w)
+    },
+    "("                                          ")" <w:(":" <Qualident>)?> => {
+        ast::FormalParameters(Vec::default(), w)
+    },
+}
+
+// PIM syntax 81
+pub FPSection: ast::FPSection<'input> = {
+    "VAR" <u:IdentList> ":" <v:FormalType> => ast::FPSection(Some(ast::Var), u, v),
+          <u:IdentList> ":" <v:FormalType> => ast::FPSection(None, u, v),
+}
+
+// PIM syntax 82
+pub FormalType: ast::FormalType<'input> = {
+    "ARRAY" "OF" <u:Qualident> => ast::FormalType(Some(ast::ArrayOf), u),
+                 <u:Qualident> => ast::FormalType(None, u),
+}
+
+// PIM syntax 83
+pub ModuleDeclaration: ast::ModuleDeclaration<'input> = {
+    "MODULE" <u:Ident> <v:(Priority)?> ";" <w:(Import)*> <x:(Export)?> <y:Block> <z:Ident> => {
+        ast::ModuleDeclaration(u, v, w, x, y, z)
+    },
+}
+
+// PIM syntax 85
+pub Priority: ast::Priority<'input> = {
+    "[" <u:ConstExpression> "]" => ast::Priority(u),
+}
+
+// PIM syntax 86
+pub Export: ast::Export<'input> = {
+    "EXPORT" "QUALIFIED" <u:IdentList> ";" => ast::Export(Some(ast::Qualified), u),
+    "EXPORT"             <u:IdentList> ";" => ast::Export(None, u),
+}
+
+// PIM syntax 87
+pub Import: ast::Import<'input> = {
+    <u:("FROM" <Ident>)?> "IMPORT" <v:IdentList> ";" => ast::Import(u, v),
+}
+
+// PIM syntax 88
+pub DefinitionModule: ast::DefinitionModule<'input> = {
+    "DEFINITION" "MODULE" <u:Ident> ";"
+            <v:(Import)*>
+            <w:(Export)?>
+            <x:(Definition)*>
+            "END" <y:Ident> "." => {
+        ast::DefinitionModule(u, v, w, x, y)
+    },
+}
+
+// PIM syntax 90
+// Refactored
+pub Definition: ast::Definition<'input> = {
+    "CONST" <u:(<ConstDeclaration> ";")*>     => ast::Definition::Const(u),
+    "TYPE"  <u:(<Ident> <("=" <Type>)?>";")*> => ast::Definition::Type(u),
+    "VAR"   <u:(<VariableDeclaration> ";")*>  => ast::Definition::Var(u),
+            <u:ProcedureHeading> ";"          => ast::Definition::ProcedureHeading(u),
+    
+}
+
+// PIM syntax 94
+pub ProgramModule: ast::ProgramModule<'input> = {
+    "MODULE" <u:Ident> <v:(Priority)?> ";"
+            <w:(Import)*> <x:Block> <y:Ident> "." => {
+        ast::ProgramModule(u, v, w, x, y)
+    },
+}
+
+// PIM syntax 96
+pub CompilationUnit: ast::CompilationUnit<'input> = {
+    <u:DefinitionModule>               => {
+        ast::CompilationUnit::DefinitionModule(u)
+    },
+    "IMPLEMENTATION" <u:ProgramModule> => {
+        ast::CompilationUnit::ProgramModule(Some(ast::Implementation), u)
+    },
+                     <u:ProgramModule> => {
+        ast::CompilationUnit::ProgramModule(None, u)
+    },
+}
