@@ -53,12 +53,12 @@ pub enum Relation {
 pub struct SimpleConstExpr<'a>(
     pub AddSub,
     pub ConstTerm<'a>,
-    pub Vec<(AddOp, ConstTerm<'a>)>,
+    pub Vec<(AddOperator, ConstTerm<'a>)>,
 );
 
 // PIM syntax 16
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum AddOp {
+pub enum AddOperator {
     ADD,
     SUB,
     OR,
@@ -150,12 +150,7 @@ pub struct FieldListSequence<'a>(pub Vec<FieldList<'a>>);
 #[derive(Debug, PartialEq, Eq)]
 pub enum FieldList<'a> {
     Ident(IdentList<'a>, Type<'a>),
-    Case(
-        Option<Ident<'a>>,
-        Qualident<'a>,
-        Vec<Variant<'a>>,
-        FieldListSequence<'a>,
-    ),
+    Case(Option<Ident<'a>>, Qualident<'a>, Vec<Variant<'a>>, FieldListSequence<'a>),
     Empty,
 }
 
@@ -185,10 +180,7 @@ pub struct ProcedureType<'a>(pub Option<FormalTypeList<'a>>);
 
 // PIM syntax 42
 #[derive(Debug, PartialEq, Eq)]
-pub struct FormalTypeList<'a>(
-    pub Vec<(Option<Var>, FormalType<'a>)>,
-    pub Option<Qualident<'a>>,
-);
+pub struct FormalTypeList<'a>(pub Vec<(Option<Var>, FormalType<'a>)>, pub Option<Qualident<'a>>);
 
 // PIM syntax 44
 #[derive(Debug, PartialEq, Eq)]
@@ -212,14 +204,11 @@ pub struct ExpList<'a>(pub Vec<Expression<'a>>);
 
 // PIM syntax 47
 #[derive(Debug, PartialEq, Eq)]
-pub struct Expression<'a>(
-    pub SimpleExpression<'a>,
-    pub Option<(Relation, SimpleExpression<'a>)>,
-);
+pub struct Expression<'a>(pub SimpleExpression<'a>, pub Option<(Relation, SimpleExpression<'a>)>);
 
 // PIM syntax 48
 #[derive(Debug, PartialEq, Eq)]
-pub struct SimpleExpression<'a>(pub AddSub, pub Box<Term<'a>>, pub Vec<(AddOp, Term<'a>)>);
+pub struct SimpleExpression<'a>(pub AddSub, pub Box<Term<'a>>, pub Vec<(AddOperator, Term<'a>)>);
 
 // PIM syntax 49
 #[derive(Debug, PartialEq, Eq)]

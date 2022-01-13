@@ -57,10 +57,10 @@ pub SimpleConstExpr: ast::SimpleConstExpr<'input> = {
 }
 
 // PIM syntax 16
-pub AddOperator: ast::AddOp = {
-    "+"  => ast::AddOp::ADD,
-    "-"  => ast::AddOp::SUB,
-    "OR" => ast::AddOp::OR,
+pub AddOperator: ast::AddOperator = {
+    "+"  => ast::AddOperator::ADD,
+    "-"  => ast::AddOperator::SUB,
+    "OR" => ast::AddOperator::OR,
 }
 
 // PIM syntax 17
