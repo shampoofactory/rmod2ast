@@ -7,7 +7,7 @@
         "**/parser.rs": true,
     },
     "rust-analyzer.files.excludeDirs": [
-        "src/gen"
+        "src/parse"
     ],
     "cSpell.ignoreWords": [
         "Qualident",
