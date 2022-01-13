@@ -1,7 +1,5 @@
-mod ast;
-mod parse;
+pub mod ast;
+pub mod parse;
 
 #[cfg(test)]
 mod tests;
-
-pub use ast::*;
