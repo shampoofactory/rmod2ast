@@ -75,3 +75,32 @@ ok!(string_q_uv_q, StringParser, "'uv'", ast::QStr("'uv'"));
 ok!(string_qq_uv_qq, StringParser, "\"uv\"", ast::QStr("\"uv\""));
 ok!(string_q_qq_q, StringParser, "'\"'", ast::QStr("'\"'"));
 ok!(string_qq_q_qq, StringParser, "\"'\"", ast::QStr("\"'\""));
+
+// 11 Qualident
+err!(qualident_null, QualidentParser, "");
+err!(qualident_one_two, QualidentParser, "one two");
+
+ok!(qualident_one, QualidentParser, "one", ast::Qualident(vec![ast::Ident("one")]));
+ok!(
+    qualident_one_dot_two,
+    QualidentParser,
+    "one.two",
+    ast::Qualident(vec![ast::Ident("one"), ast::Ident("two")])
+);
+
+// 14 Relation
+ok!(relation_eq, RelationParser, "=", ast::Relation::EQ);
+ok!(relation_hh, RelationParser, "#", ast::Relation::HASH);
+ok!(relation_ne, RelationParser, "<>", ast::Relation::NE);
+ok!(relation_lt, RelationParser, "<", ast::Relation::LT);
+ok!(relation_lte, RelationParser, "<=", ast::Relation::LTE);
+ok!(relation_gt, RelationParser, ">", ast::Relation::GT);
+ok!(relation_gte, RelationParser, ">=", ast::Relation::GTE);
+ok!(relation_in, RelationParser, "IN", ast::Relation::IN);
+
+// 16 AddOp
+err!(addop_or_low, AddOperatorParser, "or");
+
+ok!(addop_add, AddOperatorParser, "+", ast::AddOperator::ADD);
+ok!(addop_sub, AddOperatorParser, "-", ast::AddOperator::SUB);
+ok!(addop_or, AddOperatorParser, "OR", ast::AddOperator::OR);
