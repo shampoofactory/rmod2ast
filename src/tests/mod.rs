@@ -104,3 +104,15 @@ err!(addop_or_low, AddOperatorParser, "or");
 ok!(addop_add, AddOperatorParser, "+", ast::AddOperator::ADD);
 ok!(addop_sub, AddOperatorParser, "-", ast::AddOperator::SUB);
 ok!(addop_or, AddOperatorParser, "OR", ast::AddOperator::OR);
+
+// 18 MulOp
+err!(mulop_div_low, MulOperatorParser, "div");
+err!(mulop_mod_low, MulOperatorParser, "mod");
+err!(mulop_and_low, MulOperatorParser, "and");
+
+ok!(mulop_mul, MulOperatorParser, "*", ast::MulOperator::MUL);
+ok!(mulop_div_char, MulOperatorParser, "/", ast::MulOperator::DIV);
+ok!(mulop_div, MulOperatorParser, "DIV", ast::MulOperator::DIV);
+ok!(mulop_mod, MulOperatorParser, "MOD", ast::MulOperator::MOD);
+ok!(mulop_and, MulOperatorParser, "AND", ast::MulOperator::AND);
+ok!(mulop_and_char, MulOperatorParser, "&", ast::MulOperator::AND);
